@@ -4,313 +4,183 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bundesliga Match Predictor</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Playfair+Display:wght@500;700&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        /* Dark / Elegant theme integrated directly into index.html
+           Accent: Gold (#D4AF37) for a classy touch
+        */
+        :root{
+          --bg: #070708;
+          --surface: #0e0f11;
+          --muted: #9aa3ad;
+          --text: #e6e7e9;
+          --accent: #D4AF37;
+          --accent-2: #b99a2b;
+          --glass: rgba(255,255,255,0.03);
+          --card-shadow: 0 8px 28px rgba(0,0,0,0.6);
+          --input-shadow: 0 6px 18px rgba(0,0,0,0.5);
+          --radius: 12px;
+          --radius-sm: 8px;
+          --transition: 180ms cubic-bezier(.2,.9,.3,1);
         }
 
-        :root {
-            --primary-color: #d00;
-            --secondary-color: #333;
-            --accent-color: #ffd700;
-            --bg-light: #f5f5f5;
-            --bg-white: #ffffff;
-            --text-dark: #1a1a1a;
-            --text-light: #666;
-            --border-color: #ddd;
-            --success: #4caf50;
-            --warning: #ff9800;
-            --danger: #f44336;
-        }
-
+        * { box-sizing: border-box; }
+        html,body,#root { height: 100%; }
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            color: var(--text-dark);
+          margin: 0;
+          font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+          background: linear-gradient(180deg, var(--bg) 0%, #060606 60%);
+          color: var(--text);
+          -webkit-font-smoothing:antialiased;
+          -moz-osx-font-smoothing:grayscale;
+          line-height: 1.45;
         }
 
         .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
+          max-width: 1100px;
+          margin: 36px auto;
+          padding: 24px;
         }
 
-        /* Header */
+        /* Header Card (was .header) */
         .header {
-            background: var(--bg-white);
-            padding: 40px 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            margin-bottom: 30px;
-            text-align: center;
+          background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+          padding: 28px 22px;
+          border-radius: calc(var(--radius) + 4px);
+          box-shadow: var(--card-shadow);
+          margin-bottom: 30px;
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap:16px;
+        }
+
+        .header-content {
+          display:flex;
+          align-items:center;
+          gap:16px;
+        }
+
+        .brand-logo {
+          width:48px;
+          height:48px;
+          border-radius:8px;
+          background: linear-gradient(180deg, rgba(212,175,55,0.12), rgba(212,175,55,0.04));
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          color:var(--accent);
+          font-weight:700;
+          font-family: "Playfair Display", serif;
         }
 
         .header h1 {
-            font-size: 2.5em;
-            color: var(--primary-color);
-            margin-bottom: 10px;
+          font-family: "Playfair Display", serif;
+          font-size: 22px;
+          letter-spacing: -0.4px;
+          color: var(--text);
+          margin:0;
         }
 
         .subtitle {
-            color: var(--text-light);
-            font-size: 1.1em;
+          color: var(--muted);
+          font-size: 0.95em;
         }
 
         /* Stats Section */
-        .stats-section {
-            margin-bottom: 30px;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-        }
-
+        .stats-section { margin-bottom: 30px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px; }
         .stat-card {
-            background: var(--bg-white);
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            text-align: center;
-            transition: transform 0.3s ease;
+          background: linear-gradient(180deg, rgba(255,255,255,0.01), transparent);
+          padding: 16px;
+          border-radius: 12px;
+          box-shadow: var(--card-shadow);
+          text-align: center;
+          border: 1px solid rgba(255,255,255,0.03);
         }
-
-        .stat-card:hover {
-            transform: translateY(-5px);
-        }
-
-        .stat-value {
-            font-size: 2em;
-            font-weight: bold;
-            color: var(--primary-color);
-            margin: 10px 0;
-        }
-
-        .stat-label {
-            color: var(--text-light);
-            font-size: 0.9em;
-        }
+        .stat-value { font-size: 1.6em; font-weight:700; color:var(--accent); margin:8px 0; }
+        .stat-label { color: var(--muted); font-size: 0.9em; }
 
         /* Filters Section */
-        .filters-section {
-            margin-bottom: 30px;
-        }
-
-        .filter-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            justify-content: center;
-        }
-
+        .filters-section { margin-bottom: 30px; }
+        .filter-buttons { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; }
         .filter-btn {
-            background: var(--bg-white);
-            border: 2px solid var(--border-color);
-            padding: 10px 20px;
-            border-radius: 25px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-weight: 500;
-            color: var(--text-dark);
+          background: transparent;
+          border: 1px solid rgba(255,255,255,0.04);
+          color: var(--muted);
+          padding: 10px 18px;
+          border-radius: 999px;
+          cursor:pointer;
+          transition: all var(--transition);
+          font-weight:600;
         }
-
-        .filter-btn:hover {
-            border-color: var(--primary-color);
-            color: var(--primary-color);
-        }
-
         .filter-btn.active {
-            background: var(--primary-color);
-            color: white;
-            border-color: var(--primary-color);
+          background: linear-gradient(180deg, rgba(212,175,55,0.12), rgba(212,175,55,0.06));
+          color: var(--accent);
+          border-color: rgba(212,175,55,0.14);
+          box-shadow: 0 8px 30px rgba(212,175,55,0.04);
+          transform: translateY(-2px);
         }
 
         /* Matches Section */
-        .matches-section {
-            margin-bottom: 30px;
-        }
-
-        .matches-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 20px;
-        }
-
+        .matches-section { margin-bottom: 30px; }
+        .matches-container { display:grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap:18px; }
         .match-card {
-            background: var(--bg-white);
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s ease;
-            animation: slideIn 0.3s ease;
+          background: linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.01));
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: var(--card-shadow);
+          transition: transform var(--transition), box-shadow var(--transition);
+          border: 1px solid rgba(255,255,255,0.03);
         }
-
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .match-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
-        }
+        .match-card:hover { transform: translateY(-6px); box-shadow: 0 20px 50px rgba(0,0,0,0.6); }
 
         .match-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 15px;
-            font-size: 0.9em;
+          padding: 12px 16px;
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap:8px;
+          background: linear-gradient(90deg, rgba(255,255,255,0.01), transparent);
         }
+        .match-date { color: var(--muted); font-size: 0.9em; }
+        .match-time { color: var(--muted); font-size: 0.85em; }
 
-        .match-date {
-            font-weight: bold;
-        }
+        .match-body { padding: 18px; }
+        .teams-container { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; }
+        .team { flex:1; text-align:center; }
+        .team-name { font-weight:700; color:var(--text); font-size:0.95em; margin-bottom:8px; }
+        .team-score { font-size:1.8em; font-weight:800; color:var(--text); }
+        .vs-text { font-size:1.2em; color:var(--muted); margin: 0 10px; font-weight:700; }
 
-        .match-time {
-            opacity: 0.9;
-            font-size: 0.85em;
-        }
+        .prediction-section { background: rgba(255,255,255,0.01); padding:14px; border-radius:10px; margin-top:8px; border:1px solid rgba(255,255,255,0.02); }
+        .prediction-label { color:var(--muted); font-size:0.8em; text-transform:uppercase; margin-bottom:6px; }
+        .prediction-value { font-size:1.4em; font-weight:800; color:var(--accent); margin-bottom:8px; }
 
-        .match-body {
-            padding: 20px;
-        }
+        .confidence-bar { background: rgba(255,255,255,0.03); height:8px; border-radius:999px; overflow:hidden; }
+        .confidence-fill { height:100%; background: linear-gradient(90deg, #ff6b6b, var(--accent), #4caf50); transition: width 0.4s ease; }
+        .confidence-text { color:var(--muted); font-size:0.85em; text-align:right; margin-top:6px; }
 
-        .teams-container {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 20px;
-        }
-
-        .team {
-            flex: 1;
-            text-align: center;
-        }
-
-        .team-name {
-            font-weight: bold;
-            color: var(--text-dark);
-            margin-bottom: 8px;
-            font-size: 0.95em;
-        }
-
-        .team-score {
-            font-size: 2em;
-            font-weight: bold;
-            color: var(--primary-color);
-        }
-
-        .vs-text {
-            font-size: 1.2em;
-            color: var(--text-light);
-            margin: 0 10px;
-            font-weight: bold;
-        }
-
-        .prediction-section {
-            background: var(--bg-light);
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 15px;
-        }
-
-        .prediction-label {
-            color: var(--text-light);
-            font-size: 0.85em;
-            text-transform: uppercase;
-            margin-bottom: 5px;
-        }
-
-        .prediction-value {
-            font-size: 1.5em;
-            font-weight: bold;
-            color: var(--text-dark);
-            margin-bottom: 10px;
-        }
-
-        .confidence-bar {
-            background: #e0e0e0;
-            height: 8px;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-
-        .confidence-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #ff6b6b, #ffd700, #4caf50);
-            transition: width 0.3s ease;
-        }
-
-        .confidence-text {
-            font-size: 0.8em;
-            color: var(--text-light);
-            margin-top: 5px;
-            text-align: right;
-        }
-
-        .confidence-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.85em;
-            font-weight: bold;
-            margin-top: 10px;
-        }
-
-        .confidence-high {
-            background: rgba(76, 175, 80, 0.2);
-            color: var(--success);
-        }
-
-        .confidence-medium {
-            background: rgba(255, 152, 0, 0.2);
-            color: var(--warning);
-        }
-
-        .confidence-low {
-            background: rgba(244, 67, 54, 0.2);
-            color: var(--danger);
-        }
+        .confidence-badge { display:inline-block; padding:6px 12px; border-radius:999px; font-size:0.85em; font-weight:700; margin-top:10px; }
+        .confidence-high { background: rgba(76,175,80,0.08); color:#7FFFD4; }
+        .confidence-medium { background: rgba(212,175,55,0.08); color:var(--accent); }
+        .confidence-low { background: rgba(244,67,54,0.06); color:#ff7b7b; }
 
         /* Footer */
-        .footer {
-            background: var(--bg-white);
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-            color: var(--text-light);
-            font-size: 0.9em;
-            margin-top: 30px;
+        .footer { text-align:center; color:var(--muted); font-size:13px; margin-top:28px; }
+
+        /* Responsive */
+        @media (max-width:800px){
+          .teams-container { flex-direction:column; align-items:stretch; gap:8px; }
+          .matches-container { grid-template-columns: 1fr; }
+          .header { flex-direction:column; align-items:stretch; gap:12px; }
+          .header h1 { font-size:20px; }
         }
 
-        @media (max-width: 768px) {
-            .header h1 {
-                font-size: 1.8em;
-            }
+        /* small helpers */
+        .muted { color: var(--muted); }
 
-            .matches-container {
-                grid-template-columns: 1fr;
-            }
-
-            .filter-buttons {
-                gap: 8px;
-            }
-
-            .filter-btn {
-                padding: 8px 16px;
-                font-size: 0.9em;
-            }
-        }
     </style>
 </head>
 <body>
@@ -318,8 +188,15 @@
         <!-- Header -->
         <header class="header">
             <div class="header-content">
-                <h1>⚽ Bundesliga Match Predictor</h1>
-                <p class="subtitle">Vorhersagen für den kommenden Spieltag</p>
+                <div class="brand-logo">BM</div>
+                <div>
+                    <h1>Bundesliga Match Predictor</h1>
+                    <div class="subtitle">Vorhersagen für den kommenden Spieltag</div>
+                </div>
+            </div>
+            <div class="controls">
+                <!-- Placeholder for future controls (theme toggle, settings) -->
+                <div class="small muted">Edles Dark‑Theme aktiv</div>
             </div>
         </header>
 
@@ -349,9 +226,9 @@
         <section class="filters-section">
             <div class="filter-buttons">
                 <button class="filter-btn active" data-filter="all">Alle Spiele</button>
-                <button class="filter-btn" data-filter="high">Hohe Konfidenz (>80%)</button>
+                <button class="filter-btn" data-filter="high">Hohe Konfidenz (&gt;80%)</button>
                 <button class="filter-btn" data-filter="medium">Mittlere Konfidenz (60-80%)</button>
-                <button class="filter-btn" data-filter="low">Niedrige Konfidenz (<60%)</button>
+                <button class="filter-btn" data-filter="low">Niedrige Konfidenz (&lt;60%)</button>
             </div>
         </section>
 
@@ -496,13 +373,16 @@
             container.innerHTML = m.map(match => {
                 const conf = (match.confidence * 100).toFixed(0);
                 const confClass = match.confidence > 0.80 ? 'high' : (match.confidence >= 0.60 ? 'medium' : 'low');
-                const label = match.confidence > 0.80 ? '🟢 Hohe Konfidenz' : (match.confidence >= 0.60 ? '🟡 Mittlere Konfidenz' : '🔴 Niedrige Konfidenz');
+                const label = match.confidence > 0.80 ? 'Hohe Konfidenz' : (match.confidence >= 0.60 ? 'Mittlere Konfidenz' : 'Niedrige Konfidenz');
                 
                 return `
                     <div class="match-card">
                         <div class="match-header">
-                            <div class="match-date">Spieltag ${match.matchday}</div>
-                            <div class="match-time">${match.date} um ${match.time} Uhr</div>
+                            <div>
+                                <div class="match-date">Spieltag ${match.matchday}</div>
+                                <div class="match-time">${match.date} · ${match.time} Uhr</div>
+                            </div>
+                            <div class="muted">${label}</div>
                         </div>
                         <div class="match-body">
                             <div class="teams-container">
@@ -523,7 +403,7 @@
                                     <div class="confidence-fill" style="width: ${conf}%"></div>
                                 </div>
                                 <div class="confidence-text">Konfidenz: ${conf}%</div>
-                                <span class="confidence-badge confidence-${confClass}">${label}</span>
+                                <span class="confidence-badge confidence-${confClass}">${conf}%</span>
                             </div>
                         </div>
                     </div>
