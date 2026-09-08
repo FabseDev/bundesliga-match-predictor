@@ -49,7 +49,7 @@
           padding: 28px 22px;
           border-radius: calc(var(--radius) + 4px);
           box-shadow: var(--card-shadow);
-          margin-bottom: 30px;
+          margin-bottom: 36px;
           display:flex;
           align-items:center;
           justify-content:space-between;
@@ -88,8 +88,24 @@
           font-size: 0.95em;
         }
 
+        /* Section wrapper to make transitions clearer */
+        .section-card {
+          background: linear-gradient(180deg, rgba(255,255,255,0.01), transparent);
+          padding: 16px;
+          border-radius: 12px;
+          border: 1px solid rgba(255,255,255,0.03);
+          box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+          margin-bottom: 18px;
+        }
+
+        /* Small visual separator between sections for clearer transitions */
+        .section-separator {
+          height: 1px;
+          background: linear-gradient(90deg, rgba(255,255,255,0.00), rgba(255,255,255,0.03), rgba(255,255,255,0.00));
+          margin: 18px 0;
+        }
+
         /* Stats Section */
-        .stats-section { margin-bottom: 30px; }
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px; }
         .stat-card {
           background: linear-gradient(180deg, rgba(255,255,255,0.01), transparent);
@@ -103,7 +119,6 @@
         .stat-label { color: var(--muted); font-size: 0.9em; }
 
         /* Filters Section */
-        .filters-section { margin-bottom: 30px; }
         .filter-buttons { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; }
         .filter-btn {
           background: transparent;
@@ -124,7 +139,6 @@
         }
 
         /* Matches Section */
-        .matches-section { margin-bottom: 30px; }
         .matches-container { display:grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap:18px; }
         .match-card {
           background: linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.01));
@@ -201,7 +215,7 @@
         </header>
 
         <!-- Stats Section -->
-        <section class="stats-section">
+        <section class="stats-section section-card">
             <div class="stats-grid" id="statsContainer">
                 <div class="stat-card">
                     <div class="stat-label">Spiele im Spieltag</div>
@@ -222,8 +236,10 @@
             </div>
         </section>
 
+        <div class="section-separator" aria-hidden="true"></div>
+
         <!-- Filters -->
-        <section class="filters-section">
+        <section class="filters-section section-card">
             <div class="filter-buttons">
                 <button class="filter-btn active" data-filter="all">Alle Spiele</button>
                 <button class="filter-btn" data-filter="high">Hohe Konfidenz (&gt;80%)</button>
@@ -232,8 +248,10 @@
             </div>
         </section>
 
+        <div class="section-separator" aria-hidden="true"></div>
+
         <!-- Matches Section -->
-        <section class="matches-section">
+        <section class="matches-section section-card">
             <div class="matches-container" id="matchesContainer">
                 <!-- Dynamisch gefüllt -->
             </div>
