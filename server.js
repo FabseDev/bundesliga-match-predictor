@@ -1,17 +1,17 @@
 const express = require('express');
-const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1d' }));
+app.use(express.urlencoded({ extended: true }));
 
-// Mock data für Bundesliga-Spiele
+// Serve static files from public folder
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Mock data
 const getMockMatches = () => {
   return [
     {
@@ -113,30 +113,6 @@ app.get('/api/matches', (req, res) => {
   }
 });
 
-app.get('/api/matches/:id', (req, res) => {
-  try {
-    const matches = getMockMatches();
-    const match = matches.find(m => m.id === parseInt(req.params.id));
-    
-    if (!match) {
-      return res.status(404).json({
-        success: false,
-        error: 'Spiel nicht gefunden'
-      });
-    }
-    
-    res.json({
-      success: true,
-      data: match
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Fehler beim Laden des Spiels'
-    });
-  }
-});
-
 app.get('/api/stats', (req, res) => {
   try {
     const matches = getMockMatches();
@@ -159,27 +135,14 @@ app.get('/api/stats', (req, res) => {
   }
 });
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
-});
-
-// Serve static files explicitly
-app.get('/styles.css', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'styles.css'));
-});
-
-app.get('/app.js', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'app.js'));
-});
-
-// Catch-all for index.html
+// Serve index.html for all other routes
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🏟️  Bundesliga Predictor läuft auf http://localhost:${PORT}`);
+  console.log(`🏟️  Server läuft auf Port ${PORT}`);
 });
 
 module.exports = app;
