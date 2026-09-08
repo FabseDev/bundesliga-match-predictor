@@ -315,81 +315,47 @@
     </div>
 
     <script>
-        // Mock Daten
-        const matches = [
-            {
-                id: 1,
-                matchday: 1,
-                homeTeam: 'FC Bayern München',
-                awayTeam: 'VfL Wolfsburg',
-                homeScore: 3,
-                awayScore: 1,
-                prediction: '3:1',
-                confidence: 0.85,
-                date: '2024-09-14',
-                time: '15:30'
-            },
-            {
-                id: 2,
-                matchday: 1,
-                homeTeam: 'Borussia Dortmund',
-                awayTeam: 'Eintracht Frankfurt',
-                homeScore: 2,
-                awayScore: 1,
-                prediction: '2:1',
-                confidence: 0.78,
-                date: '2024-09-14',
-                time: '15:30'
-            },
-            {
-                id: 3,
-                matchday: 1,
-                homeTeam: 'RB Leipzig',
-                awayTeam: '1. FC Köln',
-                homeScore: 3,
-                awayScore: 0,
-                prediction: '3:0',
-                confidence: 0.82,
-                date: '2024-09-14',
-                time: '15:30'
-            },
-            {
-                id: 4,
-                matchday: 1,
-                homeTeam: 'Bayer Leverkusen',
-                awayTeam: 'Mainz 05',
-                homeScore: 2,
-                awayScore: 0,
-                prediction: '2:0',
-                confidence: 0.80,
-                date: '2024-09-14',
-                time: '15:30'
-            },
-            {
-                id: 5,
-                matchday: 1,
-                homeTeam: 'SC Freiburg',
-                awayTeam: 'Hoffenheim',
-                homeScore: 1,
-                awayScore: 1,
-                prediction: '1:1',
-                confidence: 0.70,
-                date: '2024-09-15',
-                time: '15:30'
-            },
-            {
-                id: 6,
-                matchday: 1,
-                homeTeam: 'Union Berlin',
-                awayTeam: 'Borussia Mönchengladbach',
-                homeScore: 1,
-                awayScore: 2,
-                prediction: '1:2',
-                confidence: 0.65,
-                date: '2024-09-15',
-                time: '15:30'
-            }
+        // Base matches (teams, predictions, confidences) — dates assigned dynamically to upcoming weekend
+        const baseMatches = [
+            { id: 1, homeTeam: 'FC Bayern München', awayTeam: 'VfL Wolfsburg', homeScore: 3, awayScore: 1, prediction: '3:1', confidence: 0.85 },
+            { id: 2, homeTeam: 'Borussia Dortmund', awayTeam: 'Eintracht Frankfurt', homeScore: 2, awayScore: 1, prediction: '2:1', confidence: 0.78 },
+            { id: 3, homeTeam: 'RB Leipzig', awayTeam: '1. FC Köln', homeScore: 3, awayScore: 0, prediction: '3:0', confidence: 0.82 },
+            { id: 4, homeTeam: 'Bayer Leverkusen', awayTeam: 'Mainz 05', homeScore: 2, awayScore: 0, prediction: '2:0', confidence: 0.80 },
+            { id: 5, homeTeam: 'SC Freiburg', awayTeam: 'Hoffenheim', homeScore: 1, awayScore: 1, prediction: '1:1', confidence: 0.70 },
+            { id: 6, homeTeam: 'Union Berlin', awayTeam: 'Borussia Mönchengladbach', homeScore: 1, awayScore: 2, prediction: '1:2', confidence: 0.65 }
         ];
+
+        // Compute next weekend dates (Saturday and Sunday) relative to today
+        function getNextWeekendDates() {
+            const now = new Date();
+            // Clone date to avoid mutation
+            const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const day = d.getDay(); // 0=Sun, 6=Sat
+            // Calculate days until next Saturday
+            const daysUntilSat = (6 - day + 7) % 7 || 7; // if today is Saturday -> next Saturday (7 days)
+            const daysUntilSun = (7 - day + 7) % 7 || 7; // next Sunday
+
+            const saturday = new Date(d);
+            saturday.setDate(d.getDate() + daysUntilSat);
+            const sunday = new Date(d);
+            sunday.setDate(d.getDate() + daysUntilSun);
+
+            // Format YYYY-MM-DD
+            const fmt = dt => dt.toISOString().slice(0,10);
+            return [fmt(saturday), fmt(sunday)];
+        }
+
+        function assignUpcomingDates(base) {
+            const [sat, sun] = getNextWeekendDates();
+            // assign first half of matches to saturday, rest to sunday
+            return base.map((m, idx) => {
+                const date = idx < Math.ceil(base.length/2) ? sat : sun;
+                return Object.assign({}, m, { date, time: '15:30', matchdayLabel: 'Nächster Spieltag' });
+            });
+        }
+
+        // Use dynamically assigned matches for upcoming matchday
+        const matches = assignUpcomingDates(baseMatches);
 
         let currentFilter = 'all';
 
@@ -398,6 +364,11 @@
             displayMatches(matches);
             updateStats();
             setupFilters();
+            // Show upcoming matchday date in header subtitle
+            const subtitle = document.querySelector('.subtitle');
+            if (matches && matches.length) {
+                subtitle.textContent = `Vorhersagen für ${matches[0].date} & ${matches[matches.length-1].date}`;
+            }
         });
 
         // Setup filter buttons
@@ -429,11 +400,11 @@
 
         // Update stats
         function updateStats() {
-            const avg = (matches.reduce((sum, m) => sum + m.confidence, 0) / matches.length * 100).toFixed(0);
+            const avg = matches.length ? (matches.reduce((sum, m) => sum + m.confidence, 0) / matches.length * 100).toFixed(0) : 0;
             document.getElementById('totalMatches').textContent = matches.length;
             document.getElementById('avgConfidence').textContent = avg + '%';
-            document.getElementById('correctPredictions').textContent = '5/' + matches.length;
-            document.getElementById('accuracyRate').textContent = '75%';
+            document.getElementById('correctPredictions').textContent = '–/' + matches.length; // placeholder
+            document.getElementById('accuracyRate').textContent = '–%';
         }
 
         // Display matches
@@ -448,7 +419,7 @@
                     <div class="match-card">
                         <div class="match-header">
                             <div>
-                                <div class="match-date">Spieltag ${match.matchday}</div>
+                                <div class="match-date">${match.matchdayLabel || 'Spiel'}</div>
                                 <div class="match-time">${match.date} · ${match.time} Uhr</div>
                             </div>
                             <div class="muted">${label}</div>
