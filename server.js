@@ -9,7 +9,7 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1d' }));
 
 // Mock data für Bundesliga-Spiele
 const getMockMatches = () => {
@@ -164,14 +164,18 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-// Serve index.html for root path
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+// Serve static files explicitly
+app.get('/styles.css', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'styles.css'));
 });
 
-// 404 Handler
-app.use((req, res) => {
-  res.status(404).sendFile(path.join(__dirname, 'public', 'index.html'));
+app.get('/app.js', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'app.js'));
+});
+
+// Catch-all for index.html
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.listen(PORT, () => {
