@@ -33,9 +33,6 @@
           font-display: swap;
         }
 
-        /* Dark / Elegant theme integrated directly into index.html
-           Accent: Gold (#D4AF37) for a classy touch
-        */
         :root{
           --bg: #070708;
           --surface: #0e0f11;
@@ -69,7 +66,6 @@
           padding: 24px;
         }
 
-        /* Header Card (was .header) */
         .header {
           background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
           padding: 28px 22px;
@@ -83,129 +79,29 @@
           border-left: 4px solid rgba(212,175,55,0.08);
         }
 
-        .header-content {
-          display:flex;
-          align-items:center;
-          gap:16px;
-        }
+        .header-content { display:flex; align-items:center; gap:16px; }
+        .brand-logo { width:48px; height:48px; border-radius:8px; background: linear-gradient(180deg, rgba(212,175,55,0.14), rgba(212,175,55,0.04)); display:flex; align-items:center; justify-content:center; color:var(--accent); font-weight:700; font-family: "Playfair Display", serif; }
+        .header h1 { font-family: "Playfair Display", serif; font-size: 22px; letter-spacing: -0.4px; color: var(--text); margin:0; }
+        .subtitle { color: var(--muted); font-size: 0.95em; }
 
-        .brand-logo {
-          width:48px;
-          height:48px;
-          border-radius:8px;
-          background: linear-gradient(180deg, rgba(212,175,55,0.14), rgba(212,175,55,0.04));
-          display:flex;
-          align-items:center;
-          justify-content:center;
-          color:var(--accent);
-          font-weight:700;
-          font-family: "Playfair Display", serif;
-        }
+        .section-card { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.008)); padding: 20px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.04); box-shadow: 0 10px 36px rgba(0,0,0,0.65); margin-bottom: 28px; position: relative; overflow: visible; }
+        .section-card::before{ content: ''; position: absolute; left: -2px; top: 14px; bottom: 14px; width: 6px; border-radius: 6px; background: linear-gradient(180deg, rgba(212,175,55,0.22), rgba(212,175,55,0.06)); box-shadow: 0 8px 24px rgba(212,175,55,0.06); pointer-events: none; }
+        .section-separator { height: 10px; background: linear-gradient(90deg, rgba(255,255,255,0.00), rgba(255,255,255,0.05), rgba(255,255,255,0.00)); margin: 22px 0; border-radius: 6px; box-shadow: 0 4px 18px rgba(0,0,0,0.55) inset; }
 
-        .header h1 {
-          font-family: "Playfair Display", serif;
-          font-size: 22px;
-          letter-spacing: -0.4px;
-          color: var(--text);
-          margin:0;
-        }
-
-        .subtitle {
-          color: var(--muted);
-          font-size: 0.95em;
-        }
-
-        /* Section wrapper to make transitions clearer */
-        .section-card {
-          background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.008));
-          padding: 20px;
-          border-radius: 14px;
-          border: 1px solid rgba(255,255,255,0.04);
-          box-shadow: 0 10px 36px rgba(0,0,0,0.65);
-          margin-bottom: 28px;
-          position: relative;
-          overflow: visible;
-        }
-
-        /* Stronger left gold accent for each section */
-        .section-card::before{
-          content: '';
-          position: absolute;
-          left: -2px;
-          top: 14px;
-          bottom: 14px;
-          width: 6px;
-          border-radius: 6px;
-          background: linear-gradient(180deg, rgba(212,175,55,0.22), rgba(212,175,55,0.06));
-          box-shadow: 0 8px 24px rgba(212,175,55,0.06);
-          pointer-events: none;
-        }
-
-        /* More visible separator between sections */
-        .section-separator {
-          height: 10px;
-          background: linear-gradient(90deg, rgba(255,255,255,0.00), rgba(255,255,255,0.05), rgba(255,255,255,0.00));
-          margin: 22px 0;
-          border-radius: 6px;
-          box-shadow: 0 4px 18px rgba(0,0,0,0.55) inset;
-        }
-
-        /* Stats Section */
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px; }
-        .stat-card {
-          background: linear-gradient(180deg, rgba(255,255,255,0.015), transparent);
-          padding: 16px;
-          border-radius: 12px;
-          box-shadow: 0 8px 26px rgba(0,0,0,0.6);
-          text-align: center;
-          border: 1px solid rgba(255,255,255,0.03);
-        }
+        .stat-card { background: linear-gradient(180deg, rgba(255,255,255,0.015), transparent); padding: 16px; border-radius: 12px; box-shadow: 0 8px 26px rgba(0,0,0,0.6); text-align: center; border: 1px solid rgba(255,255,255,0.03); }
         .stat-value { font-size: 1.6em; font-weight:700; color:var(--accent); margin:8px 0; }
         .stat-label { color: var(--muted); font-size: 0.9em; }
 
-        /* Filters Section */
         .filter-buttons { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; }
-        .filter-btn {
-          background: transparent;
-          border: 1px solid rgba(255,255,255,0.05);
-          color: var(--muted);
-          padding: 10px 18px;
-          border-radius: 999px;
-          cursor:pointer;
-          transition: all var(--transition);
-          font-weight:600;
-        }
-        .filter-btn:hover { border-color: rgba(255,255,255,0.09); color: var(--text); }
-        .filter-btn.active {
-          background: linear-gradient(180deg, rgba(212,175,55,0.16), rgba(212,175,55,0.06));
-          color: var(--accent);
-          border-color: rgba(212,175,55,0.18);
-          box-shadow: 0 10px 36px rgba(212,175,55,0.06);
-          transform: translateY(-2px);
-        }
+        .filter-btn { background: transparent; border: 1px solid rgba(255,255,255,0.05); color: var(--muted); padding: 10px 18px; border-radius: 999px; cursor:pointer; transition: all var(--transition); font-weight:600; }
+        .filter-btn.active { background: linear-gradient(180deg, rgba(212,175,55,0.16), rgba(212,175,55,0.06)); color: var(--accent); border-color: rgba(212,175,55,0.18); box-shadow: 0 10px 36px rgba(212,175,55,0.06); transform: translateY(-2px); }
 
-        /* Matches Section */
         .matches-container { display:grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap:26px; }
-        .match-card {
-          background: linear-gradient(180deg, rgba(255,255,255,0.018), rgba(255,255,255,0.01));
-          border-radius: 12px;
-          overflow: hidden;
-          box-shadow: 0 10px 34px rgba(0,0,0,0.6);
-          transition: transform var(--transition), box-shadow var(--transition);
-          border: 1px solid rgba(255,255,255,0.04);
-          padding-bottom: 6px; /* breathing room */
-        }
+        .match-card { background: linear-gradient(180deg, rgba(255,255,255,0.018), rgba(255,255,255,0.01)); border-radius: 12px; overflow: hidden; box-shadow: 0 10px 34px rgba(0,0,0,0.6); transition: transform var(--transition), box-shadow var(--transition); border: 1px solid rgba(255,255,255,0.04); padding-bottom: 6px; }
         .match-card:hover { transform: translateY(-8px); box-shadow: 0 26px 64px rgba(0,0,0,0.7); }
 
-        .match-header {
-          padding: 14px 18px;
-          display:flex;
-          align-items:center;
-          justify-content:space-between;
-          gap:8px;
-          background: linear-gradient(90deg, rgba(255,255,255,0.01), transparent);
-          border-bottom: 1px solid rgba(255,255,255,0.02);
-        }
+        .match-header { padding: 14px 18px; display:flex; align-items:center; justify-content:space-between; gap:8px; background: linear-gradient(90deg, rgba(255,255,255,0.01), transparent); border-bottom: 1px solid rgba(255,255,255,0.02); }
         .match-date { color: var(--muted); font-size: 0.92em; }
         .match-time { color: var(--muted); font-size: 0.85em; }
 
@@ -229,22 +125,11 @@
         .confidence-medium { background: rgba(212,175,55,0.08); color:var(--accent); }
         .confidence-low { background: rgba(244,67,54,0.06); color:#ff7b7b; }
 
-        /* Footer */
         .footer { text-align:center; color:var(--muted); font-size:13px; margin-top:28px; }
 
-        /* Responsive */
-        @media (max-width:800px){
-          .teams-container { flex-direction:column; align-items:stretch; gap:8px; }
-          .matches-container { grid-template-columns: 1fr; gap:18px; }
-          .header { flex-direction:column; align-items:stretch; gap:12px; }
-          .header h1 { font-size:20px; }
-          .section-card::before { left: 8px; top: 12px; bottom: 12px; width: 5px; }
-          .section-separator { height: 14px; }
-        }
+        @media (max-width:800px){ .teams-container { flex-direction:column; align-items:stretch; gap:8px; } .matches-container { grid-template-columns: 1fr; gap:18px; } .header { flex-direction:column; align-items:stretch; gap:12px; } .header h1 { font-size:20px; } .section-card::before { left: 8px; top: 12px; bottom: 12px; width: 5px; } .section-separator { height: 14px; } }
 
-        /* small helpers */
         .muted { color: var(--muted); }
-
     </style>
 </head>
 <body>
@@ -259,7 +144,6 @@
                 </div>
             </div>
             <div class="controls">
-                <!-- Placeholder for future controls (theme toggle, settings) -->
                 <div class="small muted">Edles Dark‑Theme aktiv</div>
             </div>
         </header>
@@ -269,19 +153,19 @@
             <div class="stats-grid" id="statsContainer">
                 <div class="stat-card">
                     <div class="stat-label">Spiele im Spieltag</div>
-                    <div class="stat-value" id="totalMatches">6</div>
+                    <div class="stat-value" id="totalMatches">—</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Durchschn. Konfidenz</div>
-                    <div class="stat-value" id="avgConfidence">76%</div>
+                    <div class="stat-value" id="avgConfidence">—</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Vorhersagen korrekt</div>
-                    <div class="stat-value" id="correctPredictions">5/6</div>
+                    <div class="stat-value" id="correctPredictions">—</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Genauigkeitsrate</div>
-                    <div class="stat-value" id="accuracyRate">75%</div>
+                    <div class="stat-value" id="accuracyRate">—</div>
                 </div>
             </div>
         </section>
@@ -303,7 +187,7 @@
         <!-- Matches Section -->
         <section class="matches-section section-card">
             <div class="matches-container" id="matchesContainer">
-                <!-- Dynamisch gefüllt -->
+                <!-- Dynamically rendered -->
             </div>
         </section>
 
@@ -315,63 +199,56 @@
     </div>
 
     <script>
-        // Base matches (teams, predictions, confidences) — dates assigned dynamically to upcoming weekend
+        // baseMatches: fallback local data (no dates)
         const baseMatches = [
-            { id: 1, homeTeam: 'FC Bayern München', awayTeam: 'VfL Wolfsburg', homeScore: 3, awayScore: 1, prediction: '3:1', confidence: 0.85 },
-            { id: 2, homeTeam: 'Borussia Dortmund', awayTeam: 'Eintracht Frankfurt', homeScore: 2, awayScore: 1, prediction: '2:1', confidence: 0.78 },
-            { id: 3, homeTeam: 'RB Leipzig', awayTeam: '1. FC Köln', homeScore: 3, awayScore: 0, prediction: '3:0', confidence: 0.82 },
-            { id: 4, homeTeam: 'Bayer Leverkusen', awayTeam: 'Mainz 05', homeScore: 2, awayScore: 0, prediction: '2:0', confidence: 0.80 },
-            { id: 5, homeTeam: 'SC Freiburg', awayTeam: 'Hoffenheim', homeScore: 1, awayScore: 1, prediction: '1:1', confidence: 0.70 },
-            { id: 6, homeTeam: 'Union Berlin', awayTeam: 'Borussia Mönchengladbach', homeScore: 1, awayScore: 2, prediction: '1:2', confidence: 0.65 }
+            { id: 1, homeTeam: 'FC Bayern München', awayTeam: 'VfL Wolfsburg', prediction: '3:1', confidence: 0.85 },
+            { id: 2, homeTeam: 'Borussia Dortmund', awayTeam: 'Eintracht Frankfurt', prediction: '2:1', confidence: 0.78 },
+            { id: 3, homeTeam: 'RB Leipzig', awayTeam: '1. FC Köln', prediction: '3:0', confidence: 0.82 },
+            { id: 4, homeTeam: 'Bayer Leverkusen', awayTeam: 'Mainz 05', prediction: '2:0', confidence: 0.80 },
+            { id: 5, homeTeam: 'SC Freiburg', awayTeam: 'Hoffenheim', prediction: '1:1', confidence: 0.70 },
+            { id: 6, homeTeam: 'Union Berlin', awayTeam: 'Borussia Mönchengladbach', prediction: '1:2', confidence: 0.65 }
         ];
 
-        // Compute next weekend dates (Saturday and Sunday) relative to today
-        function getNextWeekendDates() {
+        // helper: next weekend
+        function getNextWeekendDates(weeksAhead = 0) {
             const now = new Date();
-            // Clone date to avoid mutation
             const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            const day = d.getDay(); // 0=Sun, 6=Sat
-            // Calculate days until next Saturday
-            const daysUntilSat = (6 - day + 7) % 7 || 7; // if today is Saturday -> next Saturday (7 days)
-            const daysUntilSun = (7 - day + 7) % 7 || 7; // next Sunday
-
-            const saturday = new Date(d);
-            saturday.setDate(d.getDate() + daysUntilSat);
-            const sunday = new Date(d);
-            sunday.setDate(d.getDate() + daysUntilSun);
-
-            // Format YYYY-MM-DD
+            const day = d.getDay(); // 0=Sun,6=Sat
+            const daysUntilSat = ((6 - day) + 7) % 7 || 7;
+            const totalDays = daysUntilSat + weeksAhead * 7;
+            const sat = new Date(d); sat.setDate(d.getDate() + totalDays);
+            const sun = new Date(sat); sun.setDate(sat.getDate() + 1);
             const fmt = dt => dt.toISOString().slice(0,10);
-            return [fmt(saturday), fmt(sunday)];
+            return [fmt(sat), fmt(sun)];
         }
 
-        function assignUpcomingDates(base) {
-            const [sat, sun] = getNextWeekendDates();
-            // assign first half of matches to saturday, rest to sunday
-            return base.map((m, idx) => {
-                const date = idx < Math.ceil(base.length/2) ? sat : sun;
+        function assignUpcomingDates(baseArr, weeksAhead = 0) {
+            const [sat, sun] = getNextWeekendDates(weeksAhead);
+            return baseArr.map((m, idx) => {
+                const date = idx < Math.ceil(baseArr.length / 2) ? sat : sun;
                 return Object.assign({}, m, { date, time: '15:30', matchdayLabel: 'Nächster Spieltag' });
             });
         }
 
-        // Use dynamically assigned matches for upcoming matchday
-        const matches = assignUpcomingDates(baseMatches);
-
+        // UI functions (used by client loader)
         let currentFilter = 'all';
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            displayMatches(matches);
-            updateStats();
-            setupFilters();
-            // Show upcoming matchday date in header subtitle
-            const subtitle = document.querySelector('.subtitle');
-            if (matches && matches.length) {
-                subtitle.textContent = `Vorhersagen für ${matches[0].date} & ${matches[matches.length-1].date}`;
+        function filterMatches(m) {
+            switch(currentFilter) {
+                case 'high': return m.filter(x => x.confidence > 0.80);
+                case 'medium': return m.filter(x => x.confidence >= 0.60 && x.confidence <= 0.80);
+                case 'low': return m.filter(x => x.confidence < 0.60);
+                default: return m;
             }
-        });
+        }
 
-        // Setup filter buttons
+        function updateStatsFor(matchesArr) {
+            const total = matchesArr.length;
+            const avg = total ? (matchesArr.reduce((s,m)=>s+m.confidence,0)/total*100).toFixed(0) : 0;
+            document.getElementById('totalMatches').textContent = total || '—';
+            document.getElementById('avgConfidence').textContent = (avg ? avg + '%' : '—');
+        }
+
         function setupFilters() {
             const filterButtons = document.querySelectorAll('.filter-btn');
             filterButtons.forEach(btn => {
@@ -379,77 +256,62 @@
                     filterButtons.forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
                     currentFilter = btn.dataset.filter;
-                    displayMatches(filterMatches(matches));
+                    // use lastLoadedMatches if present
+                    if (window.lastLoadedMatches) displayMatches(filterMatches(window.lastLoadedMatches));
                 });
             });
         }
 
-        // Filter matches
-        function filterMatches(m) {
-            switch(currentFilter) {
-                case 'high':
-                    return m.filter(x => x.confidence > 0.80);
-                case 'medium':
-                    return m.filter(x => x.confidence >= 0.60 && x.confidence <= 0.80);
-                case 'low':
-                    return m.filter(x => x.confidence < 0.60);
-                default:
-                    return m;
-            }
-        }
-
-        // Update stats
-        function updateStats() {
-            const avg = matches.length ? (matches.reduce((sum, m) => sum + m.confidence, 0) / matches.length * 100).toFixed(0) : 0;
-            document.getElementById('totalMatches').textContent = matches.length;
-            document.getElementById('avgConfidence').textContent = avg + '%';
-            document.getElementById('correctPredictions').textContent = '–/' + matches.length; // placeholder
-            document.getElementById('accuracyRate').textContent = '–%';
-        }
-
-        // Display matches
-        function displayMatches(m) {
+        function displayMatches(arr) {
+            window.lastLoadedMatches = arr; // keep for filter
+            updateStatsFor(arr);
             const container = document.getElementById('matchesContainer');
-            container.innerHTML = m.map(match => {
+            if (!arr || arr.length === 0) {
+                container.innerHTML = '<p class="muted">Keine Spiele gefunden.</p>';
+                return;
+            }
+            container.innerHTML = arr.map(match => {
                 const conf = (match.confidence * 100).toFixed(0);
                 const confClass = match.confidence > 0.80 ? 'high' : (match.confidence >= 0.60 ? 'medium' : 'low');
                 const label = match.confidence > 0.80 ? 'Hohe Konfidenz' : (match.confidence >= 0.60 ? 'Mittlere Konfidenz' : 'Niedrige Konfidenz');
-                
                 return `
-                    <div class="match-card">
-                        <div class="match-header">
-                            <div>
-                                <div class="match-date">${match.matchdayLabel || 'Spiel'}</div>
-                                <div class="match-time">${match.date} · ${match.time} Uhr</div>
-                            </div>
-                            <div class="muted">${label}</div>
-                        </div>
-                        <div class="match-body">
-                            <div class="teams-container">
-                                <div class="team">
-                                    <div class="team-name">${match.homeTeam}</div>
-                                    <div class="team-score">${match.homeScore}</div>
-                                </div>
-                                <div class="vs-text">:</div>
-                                <div class="team">
-                                    <div class="team-name">${match.awayTeam}</div>
-                                    <div class="team-score">${match.awayScore}</div>
-                                </div>
-                            </div>
-                            <div class="prediction-section">
-                                <div class="prediction-label">Vorhersage</div>
-                                <div class="prediction-value">${match.prediction}</div>
-                                <div class="confidence-bar">
-                                    <div class="confidence-fill" style="width: ${conf}%"></div>
-                                </div>
-                                <div class="confidence-text">Konfidenz: ${conf}%</div>
-                                <span class="confidence-badge confidence-${confClass}">${conf}%</span>
-                            </div>
-                        </div>
+                  <div class="match-card">
+                    <div class="match-header">
+                      <div>
+                        <div class="match-date">${match.matchdayLabel || match.date}</div>
+                        <div class="match-time">${match.date} · ${match.time || 'TBD'} Uhr</div>
+                      </div>
+                      <div class="muted">${label}</div>
                     </div>
+                    <div class="match-body">
+                      <div class="teams-container">
+                        <div class="team"><div class="team-name">${match.homeTeam}</div><div class="team-score">${match.homeScore || '-'}</div></div>
+                        <div class="vs-text">:</div>
+                        <div class="team"><div class="team-name">${match.awayTeam}</div><div class="team-score">${match.awayScore || '-'}</div></div>
+                      </div>
+                      <div class="prediction-section">
+                        <div class="prediction-label">Vorhersage</div>
+                        <div class="prediction-value">${match.prediction}</div>
+                        <div class="confidence-bar"><div class="confidence-fill" style="width:${conf}%"></div></div>
+                        <div class="confidence-text">Konfidenz: ${conf}%</div>
+                        <span class="confidence-badge confidence-${confClass}">${conf}%</span>
+                      </div>
+                    </div>
+                  </div>
                 `;
             }).join('');
         }
+
+        // initialize filters and setup; actual loading happens in static/load-fixtures.js
+        document.addEventListener('DOMContentLoaded', () => {
+            setupFilters();
+            // show fallback for quick view while API loads
+            const fallback = assignUpcomingDates(baseMatches);
+            displayMatches(fallback);
+        });
     </script>
+
+    <!-- client loader: loads /api/fixtures and falls back to local matches if needed -->
+    <script src="/static/load-fixtures.js"></script>
 </body>
 </html>
