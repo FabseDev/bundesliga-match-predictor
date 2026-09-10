@@ -170,7 +170,8 @@ module.exports = async (req, res) => {
       });
     }
 
-    const url = "https://api.football-data.org/v4/competitions/BL1/matches?status=SCHEDULED";
+    // ⭐ WICHTIG: Kein Statusfilter mehr → alle Spiele werden geladen
+    const url = "https://api.football-data.org/v4/competitions/BL1/matches";
 
     const fetchRes = await fetch(url, {
       headers: { "X-Auth-Token": API_TOKEN }
@@ -210,7 +211,7 @@ module.exports = async (req, res) => {
 
       const oddsProbs = await getOddsProbs(home, away, dateKey);
 
-      // --- WICHTIG: Spiele ohne Quoten trotzdem anzeigen ---
+      // --- Spiele ohne Quoten trotzdem anzeigen ---
       if (!oddsProbs) {
         fixtures.push({
           id: m.id || `${home}-${away}-${utc}`,
