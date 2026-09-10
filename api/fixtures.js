@@ -209,10 +209,25 @@ module.exports = async (req, res) => {
       const dateKey = utc.slice(0, 10);
 
       const oddsProbs = await getOddsProbs(home, away, dateKey);
-      if (!oddsProbs) continue;
 
+      // --- WICHTIG: Spiele ohne Quoten trotzdem anzeigen ---
+      if (!oddsProbs) {
+        fixtures.push({
+          id: m.id || `${home}-${away}-${utc}`,
+          date: utc.slice(0, 10),
+          time: utc.slice(11, 16),
+          homeTeam: home,
+          awayTeam: away,
+          prediction: "Keine Quoten verfügbar",
+          confidence: null,
+          probabilities: null,
+          oddsProbabilities: null
+        });
+        continue;
+      }
+
+      // Prediction nur mit Quoten
       const combinedProbs = oddsProbs;
-
       const scorePred = poissonScorePredictionFromProbs(combinedProbs);
 
       fixtures.push({
