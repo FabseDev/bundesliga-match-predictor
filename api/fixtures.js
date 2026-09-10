@@ -1,68 +1,165 @@
-// Serverless endpoint for Vercel/Netlify to fetch upcoming Bundesliga fixtures from football-data.org
-// and return simple predictions. Requires environment variable FOOTBALL_DATA_API_TOKEN.
+// Serverless Bundesliga-Predictions mit dynamischen ELO-Ratings + Poisson Score-Modell
 
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
-let cache = { ts: 0, data: null };
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 Stunde: Fixture-Cache
+let fixturesCache = { ts: 0, data: null };
 
-function simplePredict(home, away) {
-  // Very small heuristic: home advantage + random variation
-  const baseHome = 0.46, baseDraw = 0.28, baseAway = 0.26;
-  const rnd = (Math.random() - 0.5) * 0.14; // ±0.07
-  const pHome = Math.min(Math.max(baseHome + rnd, 0.15), 0.85);
-  const pDraw = Math.min(Math.max(baseDraw - rnd / 2, 0.05), 0.7);
-  const pAway = Math.max(1 - pHome - pDraw, 0.03);
+// Separater Cache für ELO-Werte
+const ELO_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 Stunden
+let eloCache = {}; // { teamName: { ts, elo } }
 
-  let score;
-  if (pHome > 0.55) score = '2:1';
-  else if (pAway > 0.45) score = '1:2';
-  else score = '1:1';
+// Mapping football-data.org Teamnamen -> ClubElo URLs
+const ELO_URLS = {
+  "FC Bayern München": "https://clubelo.com/BayernMunich",
+  "Borussia Dortmund": "https://clubelo.com/Dortmund",
+  "Bayer 04 Leverkusen": "https://clubelo.com/Leverkusen",
+  "RB Leipzig": "https://clubelo.com/RBLeipzig",
+  "VfB Stuttgart": "https://clubelo.com/Stuttgart",
+  "Eintracht Frankfurt": "https://clubelo.com/Frankfurt",
+  "SC Freiburg": "https://clubelo.com/Freiburg",
+  "TSG 1899 Hoffenheim": "https://clubelo.com/Hoffenheim",
+  "1. FC Union Berlin": "https://clubelo.com/UnionBerlin",
+  "VfL Wolfsburg": "https://clubelo.com/Wolfsburg",
+  "SV Werder Bremen": "https://clubelo.com/WerderBremen",
+  "1. FSV Mainz 05": "https://clubelo.com/Mainz",
+  "Borussia Mönchengladbach": "https://clubelo.com/MGladbach",
+  "FC Augsburg": "https://clubelo.com/Augsburg",
+  "VfL Bochum 1848": "https://clubelo.com/Bochum",
+  "1. FC Heidenheim 1846": "https://clubelo.com/Heidenheim",
+  "SV Darmstadt 98": "https://clubelo.com/Darmstadt",
+  "1. FC Köln": "https://clubelo.com/Cologne"
+};
 
-  const confidence = Math.round(Math.max(pHome, pDraw, pAway) * 100) / 100;
-  return { prediction: score, confidence };
+// ClubElo HTML scrapen
+async function fetchElo(url) {
+  const res = await fetch(url);
+  const html = await res.text();
+  const match = html.match(/<td>(\d{3,4})<\/td>/);
+  return match ? parseInt(match[1], 10) : 1500;
+}
+
+// ELO mit Cache
+async function getTeamElo(teamName) {
+  const now = Date.now();
+  const cached = eloCache[teamName];
+
+  if (cached && now - cached.ts < ELO_CACHE_TTL_MS) {
+    return cached.elo;
+  }
+
+  const url = ELO_URLS[teamName];
+  if (!url) {
+    eloCache[teamName] = { ts: now, elo: 1500 };
+    return 1500;
+  }
+
+  try {
+    const elo = await fetchElo(url);
+    eloCache[teamName] = { ts: now, elo };
+    return elo;
+  } catch {
+    eloCache[teamName] = { ts: now, elo: 1500 };
+    return 1500;
+  }
+}
+
+// Poisson-Verteilung
+function poisson(lambda, goals) {
+  return (Math.pow(lambda, goals) * Math.exp(-lambda)) / factorial(goals);
+}
+
+function factorial(n) {
+  return n <= 1 ? 1 : n * factorial(n - 1);
+}
+
+// ELO → erwartete Tore (xG)
+function expectedGoals(homeElo, awayElo) {
+  const diff = homeElo - awayElo + 50; // Heimvorteil
+  const homeExp = 1.4 + diff / 400;    // Basis + ELO-Effekt
+  const awayExp = 1.2 - diff / 400;
+  return {
+    home: Math.max(0.2, homeExp),
+    away: Math.max(0.2, awayExp)
+  };
+}
+
+// Score-Wahrscheinlichkeiten berechnen
+function poissonScorePrediction(homeElo, awayElo) {
+  const { home, away } = expectedGoals(homeElo, awayElo);
+
+  let bestScore = "1:1";
+  let bestProb = 0;
+
+  const maxGoals = 6;
+
+  for (let h = 0; h <= maxGoals; h++) {
+    for (let a = 0; a <= maxGoals; a++) {
+      const p = poisson(home, h) * poisson(away, a);
+      if (p > bestProb) {
+        bestProb = p;
+        bestScore = `${h}:${a}`;
+      }
+    }
+  }
+
+  return {
+    prediction: bestScore,
+    confidence: Math.round(bestProb * 1000) / 1000
+  };
 }
 
 module.exports = async (req, res) => {
   try {
     const now = Date.now();
-    if (cache.data && (now - cache.ts) < CACHE_TTL_MS) {
-      return res.status(200).json({ source: 'cache', matches: cache.data });
+
+    if (fixturesCache.data && now - fixturesCache.ts < CACHE_TTL_MS) {
+      return res.status(200).json({ source: "cache", matches: fixturesCache.data });
     }
 
     const API_TOKEN = process.env.FOOTBALL_DATA_API_TOKEN;
     if (!API_TOKEN) {
-      return res.status(500).json({ error: 'Missing FOOTBALL_DATA_API_TOKEN environment variable. Set it in your hosting provider.' });
+      return res.status(500).json({ error: "Missing FOOTBALL_DATA_API_TOKEN" });
     }
 
-    // football-data.org v2 endpoint for competition BL1 (Bundesliga)
-    const url = 'https://api.football-data.org/v2/competitions/BL1/matches?status=SCHEDULED';
+    const url = "https://api.football-data.org/v4/competitions/BL1/matches?status=SCHEDULED";
 
-    const fetchRes = await fetch(url, { headers: { 'X-Auth-Token': API_TOKEN } });
-    if (!fetchRes.ok) {
-      const text = await fetchRes.text();
-      return res.status(502).json({ error: 'Upstream error', detail: text });
-    }
+    const fetchRes = await fetch(url, {
+      headers: { "X-Auth-Token": API_TOKEN }
+    });
 
     const payload = await fetchRes.json();
-    const fixtures = (payload.matches || []).map(m => {
-      const home = (m.homeTeam && m.homeTeam.name) || (m.homeTeam && m.homeTeam.shortName) || 'Home';
-      const away = (m.awayTeam && m.awayTeam.name) || (m.awayTeam && m.awayTeam.shortName) || 'Away';
-      const utc = m.utcDate || m.date || new Date().toISOString();
-      const pred = simplePredict(home, away);
-      return {
+    const matches = payload.matches || [];
+
+    const fixtures = [];
+
+    for (const m of matches) {
+      const home = m.homeTeam?.name ?? "Home";
+      const away = m.awayTeam?.name ?? "Away";
+      const utc = m.utcDate || new Date().toISOString();
+
+      const [homeElo, awayElo] = await Promise.all([
+        getTeamElo(home),
+        getTeamElo(away)
+      ]);
+
+      const pred = poissonScorePrediction(homeElo, awayElo);
+
+      fixtures.push({
         id: m.id || `${home}-${away}-${utc}`,
         date: utc.slice(0, 10),
         time: utc.slice(11, 16),
         homeTeam: home,
         awayTeam: away,
+        homeElo,
+        awayElo,
         prediction: pred.prediction,
         confidence: pred.confidence
-      };
-    });
+      });
+    }
 
-    cache = { ts: now, data: fixtures };
-    return res.status(200).json({ source: 'api', matches: fixtures });
+    fixturesCache = { ts: now, data: fixtures };
+    return res.status(200).json({ source: "api", matches: fixtures });
+
   } catch (err) {
-    console.error('fixtures error', err);
     return res.status(500).json({ error: err.message });
   }
 };
