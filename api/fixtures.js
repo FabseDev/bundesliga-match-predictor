@@ -46,9 +46,31 @@ async function fetchElo(url) {
   if (!res.ok) throw new Error(`ELO fetch failed: ${res.status}`);
   const html = await res.text();
 
-  const match = html.match(/<td>(\d{3,4})<\/td>/);
-  if (!match) throw new Error("ELO value not found in HTML");
-  return parseInt(match[1], 10);
+  // 1) Primär: Suche nach der Zeile, die explizit "Elo" enthält
+  let match = html.match(/<td>\s*Elo\s*<\/td>\s*<td>(\d{3,4})<\/td>/i);
+
+  if (match) {
+    const elo = parseInt(match[1], 10);
+    if (Number.isFinite(elo) && elo > 500) {
+      return elo;
+    }
+  }
+
+  // 2) Sekundär: Alle 3–4-stelligen Zahlen sammeln
+  const allMatches = [...html.matchAll(/<td>(\d{3,4})<\/td>/g)].map(m => parseInt(m[1], 10));
+
+  if (allMatches.length === 0) {
+    throw new Error("No numeric <td> values found for ELO");
+  }
+
+  // 3) Fallback: Größte Zahl als ELO interpretieren
+  const fallbackElo = Math.max(...allMatches);
+
+  if (!Number.isFinite(fallbackElo) || fallbackElo < 500) {
+    throw new Error(`Invalid fallback ELO parsed: ${fallbackElo}`);
+  }
+
+  return fallbackElo;
 }
 
 async function getTeamElo(teamName) {
