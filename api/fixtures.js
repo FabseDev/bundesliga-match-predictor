@@ -88,17 +88,14 @@ async function getOddsProbs(home, away, dateKey) {
 // ---------- 1X2-Probs -> erwartete Tore (λ) nur aus Quoten ----------
 
 function expectedGoalsFromProbs(probs) {
-  // Bundesliga-Durchschnittswerte
   const baseHome = 1.65;
   const baseAway = 1.25;
 
-  const strengthDiff = probs.home - probs.away; // Favoritenstärke aus Quoten
+  const strengthDiff = probs.home - probs.away;
 
-  // stärkere Gewichtung, damit λ-Werte sich spürbar unterscheiden
   let homeExp = baseHome + strengthDiff * 2.2;
   let awayExp = baseAway - strengthDiff * 2.2;
 
-  // realistische Grenzen
   homeExp = Math.min(Math.max(homeExp, 0.5), 3.0);
   awayExp = Math.min(Math.max(awayExp, 0.5), 3.0);
 
@@ -169,7 +166,7 @@ module.exports = async (req, res) => {
     const API_TOKEN = process.env.FOOTBALL_DATA_API_TOKEN;
     if (!API_TOKEN) {
       return res.status(500).json({
-        error: "Missing FOOTBALL_DATA_API_TOKEN environment variable. Set it in your hosting provider."
+        error: "Missing FOOTBALL_DATA_API_TOKEN environment variable."
       });
     }
 
@@ -198,28 +195,17 @@ module.exports = async (req, res) => {
       const utc = m.utcDate || new Date().toISOString();
       const matchDate = new Date(utc);
 
-      // nur Spiele der nächsten 14 Tage
-      if (matchDate > cutoffDate || matchDate < nowDate) {
+      // KORREKTER 14-Tage-Filter
+      if (matchDate < nowDate || matchDate > cutoffDate) {
         continue;
       }
 
       const dateKey = utc.slice(0, 10);
 
       const oddsProbs = await getOddsProbs(home, away, dateKey);
+      if (!oddsProbs) continue;
 
-      // Wenn keine Quoten verfügbar sind, kannst du entscheiden:
-      // - entweder Spiel überspringen
-      // - oder neutrale Verteilung nehmen
-      if (!oddsProbs) {
-        // neutrale Verteilung:
-        // const neutral = { home: 0.4, draw: 0.26, away: 0.34 };
-        // const scorePred = poissonScorePredictionFromProbs(neutral);
-        // fixtures.push(...);
-        // oder: einfach continue;
-        continue;
-      }
-
-      const combinedProbs = oddsProbs; // nur Quoten, kein ELO
+      const combinedProbs = oddsProbs;
 
       const scorePred = poissonScorePredictionFromProbs(combinedProbs);
 
