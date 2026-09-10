@@ -2,7 +2,7 @@
 // - football-data.org (Fixtures)
 // - ClubElo (dynamische ELO-Ratings, gescraped)
 // - optional Buchmacher-Quoten (TheOddsAPI o.ä.)
-// - sauberes Modell: ELO + Quoten -> 1X2-Probs -> erwartete Tore (λ) -> Poisson -> wahrscheinlichstes Ergebnis
+// - Modell: ELO + Quoten -> 1X2-Probs -> erwartete Tore (λ) -> Poisson -> wahrscheinlichstes Ergebnis
 //
 // ENV-Variablen (alle NUR als Umgebungsvariablen, nicht im Code hart codieren):
 // - FOOTBALL_DATA_API_TOKEN  (für football-data.org)
@@ -46,7 +46,7 @@ async function fetchElo(url) {
   if (!res.ok) throw new Error(`ELO fetch failed: ${res.status}`);
   const html = await res.text();
 
-  // 1) Primär: Suche nach der Zeile, die explizit "Elo" enthält
+  // 1) Primär: Zeile mit "Elo"
   let match = html.match(/<td>\s*Elo\s*<\/td>\s*<td>(\d{3,4})<\/td>/i);
 
   if (match) {
@@ -56,14 +56,13 @@ async function fetchElo(url) {
     }
   }
 
-  // 2) Sekundär: Alle 3–4-stelligen Zahlen sammeln
+  // 2) Fallback: größte 3–4-stellige Zahl in <td>
   const allMatches = [...html.matchAll(/<td>(\d{3,4})<\/td>/g)].map(m => parseInt(m[1], 10));
 
   if (allMatches.length === 0) {
     throw new Error("No numeric <td> values found for ELO");
   }
 
-  // 3) Fallback: Größte Zahl als ELO interpretieren
   const fallbackElo = Math.max(...allMatches);
 
   if (!Number.isFinite(fallbackElo) || fallbackElo < 500) {
@@ -180,7 +179,7 @@ function eloOutcomeProbs(homeElo, awayElo) {
 
   const pHome = 1 / (1 + Math.pow(10, -diff / 400));
   const pAway = 1 - pHome;
-  const pDraw = 0.22 + (0.1 * Math.exp(-Math.abs(diff) / 200));
+  const pDraw = 0.18 + (0.06 * Math.exp(-Math.abs(diff) / 200)); // etwas weniger Draw-Dominanz
 
   const total = pHome + pDraw + pAway;
   if (total <= 0) {
@@ -199,8 +198,8 @@ function eloOutcomeProbs(homeElo, awayElo) {
 function combineProbs(eloProbs, oddsProbs) {
   if (!oddsProbs) return eloProbs;
 
-  const wElo = 0.5;
-  const wOdds = 0.5;
+  const wElo = 0.3;  // 30% ELO
+  const wOdds = 0.7; // 70% Quoten
 
   let home = wElo * eloProbs.home + wOdds * oddsProbs.home;
   let draw = wElo * eloProbs.draw + wOdds * oddsProbs.draw;
@@ -218,19 +217,22 @@ function combineProbs(eloProbs, oddsProbs) {
   return { home, draw, away };
 }
 
-// ---------- 1X2-Probs -> erwartete Tore (λ) ----------
+// ---------- 1X2-Probs -> erwartete Tore (λ) (verbessertes Modell) ----------
 
 function expectedGoalsFromProbs(probs) {
-  const baseHome = 1.4;
-  const baseAway = 1.2;
+  // Bundesliga-Durchschnittswerte
+  const baseHome = 1.65;
+  const baseAway = 1.25;
 
-  const strengthDiff = probs.home - probs.away;
+  const strengthDiff = probs.home - probs.away; // Favoritenstärke
 
-  let homeExp = baseHome + strengthDiff * 1.0;
-  let awayExp = baseAway - strengthDiff * 1.0;
+  // stärkere Gewichtung, damit λ-Werte sich spürbar unterscheiden
+  let homeExp = baseHome + strengthDiff * 2.2;
+  let awayExp = baseAway - strengthDiff * 2.2;
 
-  homeExp = Math.min(Math.max(homeExp, 0.5), 2.5);
-  awayExp = Math.min(Math.max(awayExp, 0.5), 2.5);
+  // realistische Grenzen
+  homeExp = Math.min(Math.max(homeExp, 0.5), 3.0);
+  awayExp = Math.min(Math.max(awayExp, 0.5), 3.0);
 
   return { home: homeExp, away: awayExp };
 }
@@ -328,6 +330,7 @@ module.exports = async (req, res) => {
       const utc = m.utcDate || new Date().toISOString();
       const matchDate = new Date(utc);
 
+      // nur Spiele der nächsten 14 Tage
       if (matchDate > cutoffDate || matchDate < nowDate) {
         continue;
       }
