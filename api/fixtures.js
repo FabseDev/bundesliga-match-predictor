@@ -1,20 +1,20 @@
 // Serverless Bundesliga-Predictions mit:
 // - football-data.org (Fixtures)
 // - ClubElo (dynamische ELO-Ratings, gescraped)
-// - Buchmacher-Quoten (TheOddsAPI als Beispiel)
-// - Poisson-Score-Modell
+// - optional Buchmacher-Quoten (TheOddsAPI o.ä.)
+// - sauberes Modell: ELO + Quoten -> 1X2-Probs -> erwartete Tore (λ) -> Poisson -> wahrscheinlichstes Ergebnis
 //
-// Benötigte ENV-Variablen:
+// ENV-Variablen (alle NUR als Umgebungsvariablen, nicht im Code hart codieren):
 // - FOOTBALL_DATA_API_TOKEN  (für football-data.org)
-// - ODDS_API_KEY             (für TheOddsAPI oder ähnliche Quoten-API)
+// - ODDS_API_KEY             (für Quoten-API; wenn nicht gesetzt, läuft Modell nur mit ELO)
 
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1 Stunde: Fixture-Cache
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1h: Fixture-Cache
 let fixturesCache = { ts: 0, data: null };
 
-const ELO_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 Stunden: ELO-Cache
+const ELO_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6h: ELO-Cache
 let eloCache = {}; // { teamName: { ts, elo } }
 
-const ODDS_CACHE_TTL_MS = 15 * 60 * 1000; // 15 Minuten: Quoten-Cache
+const ODDS_CACHE_TTL_MS = 15 * 60 * 1000; // 15min: Quoten-Cache
 let oddsCache = {}; // { matchKey: { ts, probs } }
 
 // Mapping football-data.org Teamnamen -> ClubElo URLs
@@ -41,19 +41,16 @@ const ELO_URLS = {
 
 // ---------- ELO-Fetch & Cache ----------
 
-// ClubElo HTML scrapen, um aktuellen ELO-Wert zu bekommen
 async function fetchElo(url) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`ELO fetch failed: ${res.status}`);
   const html = await res.text();
 
-  // sehr einfache Heuristik: erste Tabellenzelle mit 3–4-stelliger Zahl
   const match = html.match(/<td>(\d{3,4})<\/td>/);
   if (!match) throw new Error("ELO value not found in HTML");
   return parseInt(match[1], 10);
 }
 
-// ELO mit Cache pro Team
 async function getTeamElo(teamName) {
   const now = Date.now();
   const cached = eloCache[teamName];
@@ -83,18 +80,15 @@ async function getTeamElo(teamName) {
 
 // ---------- Quoten-Fetch & Cache ----------
 
-// Hilfsfunktion: Dezimalquote -> rohe Wahrscheinlichkeit
 function probFromOdds(odds) {
   if (!odds || odds <= 1.0) return 0;
   return 1 / odds;
 }
 
-// Buchmacher-Quoten abrufen (TheOddsAPI als Beispiel; Endpunkt ggf. anpassen)
 async function fetchOddsForMatch(home, away) {
   const ODDS_API_KEY = process.env.ODDS_API_KEY;
   if (!ODDS_API_KEY) return null;
 
-  // Beispiel: Fußball Deutschland Bundesliga
   const url = `https://api.the-odds-api.com/v4/sports/soccer_germany_bundesliga/odds/?apiKey=${ODDS_API_KEY}&regions=eu&markets=h2h`;
 
   const res = await fetch(url);
@@ -105,15 +99,13 @@ async function fetchOddsForMatch(home, away) {
 
   const data = await res.json();
 
-  // Einfaches Matching: Spiel mit gleichem Heim- und Auswärtsteam suchen
   const match = data.find(m => {
-    const teams = m.home_team && m.away_team ? [m.home_team, m.away_team] : [];
+    const teams = [m.home_team, m.away_team];
     return teams.includes(home) && teams.includes(away);
   });
 
   if (!match || !match.bookmakers || !match.bookmakers.length) return null;
 
-  // Nimm den ersten Buchmacher, Markt h2h (1X2)
   const market = match.bookmakers[0].markets.find(m => m.key === "h2h");
   if (!market) return null;
 
@@ -128,7 +120,6 @@ async function fetchOddsForMatch(home, away) {
 
   if (!homeOdds || !awayOdds || !drawOdds) return null;
 
-  // rohe Wahrscheinlichkeiten
   let pHome = probFromOdds(homeOdds);
   let pDraw = probFromOdds(drawOdds);
   let pAway = probFromOdds(awayOdds);
@@ -136,7 +127,6 @@ async function fetchOddsForMatch(home, away) {
   const total = pHome + pDraw + pAway;
   if (total <= 0) return null;
 
-  // normalisieren (Overround entfernen)
   return {
     home: pHome / total,
     draw: pDraw / total,
@@ -144,7 +134,6 @@ async function fetchOddsForMatch(home, away) {
   };
 }
 
-// Quoten mit Cache pro Match
 async function getOddsProbs(home, away, dateKey) {
   const now = Date.now();
   const matchKey = `${home}-${away}-${dateKey}`;
@@ -161,58 +150,8 @@ async function getOddsProbs(home, away, dateKey) {
   return probs;
 }
 
-// ---------- ELO → erwartete Tore + Poisson ----------
+// ---------- ELO-basierte 1X2-Probs ----------
 
-function expectedGoals(homeElo, awayElo) {
-  const diff = homeElo - awayElo + 50; // Heimvorteil
-
-  // geglättete erwartete Tore (xG-ähnlich)
-  let homeExp = 1.4 + diff / 500;
-  let awayExp = 1.2 - diff / 500;
-
-  // harte Grenzen für realistische Ergebnisse
-  homeExp = Math.min(Math.max(homeExp, 0.5), 2.5);
-  awayExp = Math.min(Math.max(awayExp, 0.5), 2.5);
-
-  return { home: homeExp, away: awayExp };
-}
-
-function poisson(lambda, goals) {
-  return (Math.pow(lambda, goals) * Math.exp(-lambda)) / factorial(goals);
-}
-
-function factorial(n) {
-  return n <= 1 ? 1 : n * factorial(n - 1);
-}
-
-// Score-Wahrscheinlichkeit aus ELO/Poisson
-function poissonScorePrediction(homeElo, awayElo) {
-  const { home, away } = expectedGoals(homeElo, awayElo);
-
-  let bestScore = "1:1";
-  let bestProb = 0;
-
-  const maxGoals = 4; // Begrenzung für realistische Ergebnisse
-
-  for (let h = 0; h <= maxGoals; h++) {
-    for (let a = 0; a <= maxGoals; a++) {
-      const p = poisson(home, h) * poisson(away, a);
-      if (p > bestProb) {
-        bestProb = p;
-        bestScore = `${h}:${a}`;
-      }
-    }
-  }
-
-  return {
-    prediction: bestScore,
-    confidence: Math.round(bestProb * 1000) / 1000
-  };
-}
-
-// ---------- Kombination ELO + Quoten ----------
-
-// ELO-basierte 1X2-Wahrscheinlichkeiten (vereinfacht)
 function eloOutcomeProbs(homeElo, awayElo) {
   const homeAdv = 50;
   const diff = homeElo - awayElo + homeAdv;
@@ -222,6 +161,10 @@ function eloOutcomeProbs(homeElo, awayElo) {
   const pDraw = 0.22 + (0.1 * Math.exp(-Math.abs(diff) / 200));
 
   const total = pHome + pDraw + pAway;
+  if (total <= 0) {
+    return { home: 0.33, draw: 0.34, away: 0.33 };
+  }
+
   return {
     home: pHome / total,
     draw: pDraw / total,
@@ -229,22 +172,95 @@ function eloOutcomeProbs(homeElo, awayElo) {
   };
 }
 
-// ELO + Quoten zu einer kombinierten 1X2-Wahrscheinlichkeit mischen
+// ---------- Kombination ELO + Quoten ----------
+
 function combineProbs(eloProbs, oddsProbs) {
-  if (!oddsProbs) return eloProbs; // Fallback: nur ELO
+  if (!oddsProbs) return eloProbs;
 
   const wElo = 0.5;
   const wOdds = 0.5;
 
-  const home = wElo * eloProbs.home + wOdds * oddsProbs.home;
-  const draw = wElo * eloProbs.draw + wOdds * oddsProbs.draw;
-  const away = wElo * eloProbs.away + wOdds * oddsProbs.away;
+  let home = wElo * eloProbs.home + wOdds * oddsProbs.home;
+  let draw = wElo * eloProbs.draw + wOdds * oddsProbs.draw;
+  let away = wElo * eloProbs.away + wOdds * oddsProbs.away;
 
   const total = home + draw + away;
+  if (total <= 0) {
+    return eloProbs;
+  }
+
+  home /= total;
+  draw /= total;
+  away /= total;
+
+  return { home, draw, away };
+}
+
+// ---------- 1X2-Probs -> erwartete Tore (λ) ----------
+
+function expectedGoalsFromProbs(probs) {
+  const baseHome = 1.4;
+  const baseAway = 1.2;
+
+  const strengthDiff = probs.home - probs.away;
+
+  let homeExp = baseHome + strengthDiff * 1.0;
+  let awayExp = baseAway - strengthDiff * 1.0;
+
+  homeExp = Math.min(Math.max(homeExp, 0.5), 2.5);
+  awayExp = Math.min(Math.max(awayExp, 0.5), 2.5);
+
+  return { home: homeExp, away: awayExp };
+}
+
+// ---------- Poisson ----------
+
+function poisson(lambda, goals) {
+  if (!Number.isFinite(lambda) || lambda <= 0) return 0;
+  if (!Number.isFinite(goals) || goals < 0) return 0;
+
+  return (Math.pow(lambda, goals) * Math.exp(-lambda)) / factorial(goals);
+}
+
+function factorial(n) {
+  if (!Number.isFinite(n) || n < 0) return NaN;
+  n = Math.floor(n);
+  let res = 1;
+  for (let i = 2; i <= n; i++) res *= i;
+  return res;
+}
+
+// ---------- Score-Prediction ----------
+
+function poissonScorePredictionFromProbs(combinedProbs) {
+  const { home, away } = expectedGoalsFromProbs(combinedProbs);
+
+  let bestScore = "1:1";
+  let bestProb = 0;
+
+  const maxGoals = 4;
+
+  for (let h = 0; h <= maxGoals; h++) {
+    for (let a = 0; a <= maxGoals; a++) {
+      const pHomeGoals = poisson(home, h);
+      const pAwayGoals = poisson(away, a);
+      const p = pHomeGoals * pAwayGoals;
+
+      if (p > bestProb) {
+        bestProb = p;
+        bestScore = `${h}:${a}`;
+      }
+    }
+  }
+
+  if (!Number.isFinite(bestProb) || bestProb <= 0) {
+    bestProb = 0;
+    bestScore = "1:1";
+  }
+
   return {
-    home: home / total,
-    draw: draw / total,
-    away: away / total
+    prediction: bestScore,
+    confidence: Math.round(bestProb * 1000) / 1000
   };
 }
 
@@ -254,7 +270,6 @@ module.exports = async (req, res) => {
   try {
     const now = Date.now();
 
-    // Fixture-Cache
     if (fixturesCache.data && now - fixturesCache.ts < CACHE_TTL_MS) {
       return res.status(200).json({ source: "cache", matches: fixturesCache.data });
     }
@@ -266,7 +281,6 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Bundesliga-Fixures (SCHEDULED)
     const url = "https://api.football-data.org/v4/competitions/BL1/matches?status=SCHEDULED";
 
     const fetchRes = await fetch(url, {
@@ -283,29 +297,31 @@ module.exports = async (req, res) => {
 
     const fixtures = [];
 
+    const nowDate = new Date();
+    const cutoffDate = new Date(nowDate.getTime() + 14 * 24 * 60 * 60 * 1000);
+
     for (const m of matches) {
       const home = m.homeTeam?.name ?? "Home";
       const away = m.awayTeam?.name ?? "Away";
       const utc = m.utcDate || new Date().toISOString();
+      const matchDate = new Date(utc);
+
+      if (matchDate > cutoffDate || matchDate < nowDate) {
+        continue;
+      }
+
       const dateKey = utc.slice(0, 10);
 
-      // ELO für beide Teams
       const [homeElo, awayElo] = await Promise.all([
         getTeamElo(home),
         getTeamElo(away)
       ]);
 
-      // ELO-basierte 1X2-Wahrscheinlichkeiten
       const eloProbs = eloOutcomeProbs(homeElo, awayElo);
-
-      // Buchmacher-Quoten -> 1X2-Wahrscheinlichkeiten
       const oddsProbs = await getOddsProbs(home, away, dateKey);
-
-      // kombinierte 1X2-Wahrscheinlichkeiten
       const combinedProbs = combineProbs(eloProbs, oddsProbs);
 
-      // Score-Prediction aus ELO/Poisson (für konkretes Ergebnis)
-      const scorePred = poissonScorePrediction(homeElo, awayElo);
+      const scorePred = poissonScorePredictionFromProbs(combinedProbs);
 
       fixtures.push({
         id: m.id || `${home}-${away}-${utc}`,
@@ -315,16 +331,13 @@ module.exports = async (req, res) => {
         awayTeam: away,
         homeElo,
         awayElo,
-        // konkretes wahrscheinlichstes Ergebnis (Score)
         prediction: scorePred.prediction,
-        predictionConfidence: scorePred.confidence,
-        // kombinierte 1X2-Wahrscheinlichkeiten (ELO + Quoten)
+        confidence: scorePred.confidence,
         probabilities: {
           home: Math.round(combinedProbs.home * 1000) / 1000,
           draw: Math.round(combinedProbs.draw * 1000) / 1000,
           away: Math.round(combinedProbs.away * 1000) / 1000
         },
-        // zur Transparenz: reine ELO- und reine Quoten-Probs
         eloProbabilities: eloProbs,
         oddsProbabilities: oddsProbs || null
       });
