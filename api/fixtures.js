@@ -7,13 +7,35 @@
 // - FOOTBALL_DATA_API_TOKEN
 // - ODDS_API_KEY
 
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1h Cache
+const CACHE_TTL_MS = 60 * 60 * 1000; 
 let fixturesCache = { ts: 0, data: null };
 
-const ODDS_CACHE_TTL_MS = 15 * 60 * 1000; // 15min Cache
-let oddsCache = {}; // { matchId: { ts, probs } }
+const ODDS_CACHE_TTL_MS = 15 * 60 * 1000;
+let oddsCache = {};
 
-// ---------- Odds API (optimiert für Credits) ----------
+// ---------- CREDIT CHECK ----------
+
+async function checkOddsCredits() {
+  const ODDS_API_KEY = process.env.ODDS_API_KEY;
+
+  const url = `https://api.the-odds-api.com/v4/sports/?apiKey=${ODDS_API_KEY}`;
+  const res = await fetch(url);
+
+  if (!res.ok) {
+    return { error: "Odds API unreachable", exhausted: true };
+  }
+
+  const remaining = Number(res.headers.get("X-Requests-Remaining"));
+  const used = Number(res.headers.get("X-Requests-Used"));
+
+  return {
+    remaining,
+    used,
+    exhausted: remaining === 0
+  };
+}
+
+// ---------- Odds API (optimiert) ----------
 
 function probFromOdds(odds) {
   if (!odds || odds <= 1.0) return 0;
@@ -24,11 +46,6 @@ async function fetchOddsForMatch(matchId) {
   const ODDS_API_KEY = process.env.ODDS_API_KEY;
   if (!ODDS_API_KEY) return null;
 
-  // Optimierte Odds-Abfrage:
-  // - eventIds = nur EIN Spiel → spart Credits
-  // - regions=uk → günstigste Region
-  // - markets=h2h → nur 1X2
-  // - oddsFormat=decimal → weniger Daten
   const url =
     `https://api.the-odds-api.com/v4/sports/soccer_germany_bundesliga/odds/` +
     `?apiKey=${ODDS_API_KEY}` +
@@ -38,10 +55,7 @@ async function fetchOddsForMatch(matchId) {
     `&oddsFormat=decimal`;
 
   const res = await fetch(url);
-  if (!res.ok) {
-    console.error("Odds fetch failed:", res.status);
-    return null;
-  }
+  if (!res.ok) return null;
 
   const data = await res.json();
   if (!data || !data.length) return null;
@@ -92,7 +106,7 @@ async function getOddsProbs(matchId) {
   return probs;
 }
 
-// ---------- Expected Goals aus Quoten ----------
+// ---------- Expected Goals ----------
 
 function expectedGoalsFromProbs(probs) {
   const baseHome = 1.65;
@@ -126,7 +140,7 @@ function factorial(n) {
   return res;
 }
 
-// ---------- Score-Prediction ----------
+// ---------- Score Prediction ----------
 
 function poissonScorePredictionFromProbs(probs) {
   const { home, away } = expectedGoalsFromProbs(probs);
@@ -168,11 +182,10 @@ module.exports = async (req, res) => {
     const API_TOKEN = process.env.FOOTBALL_DATA_API_TOKEN;
     if (!API_TOKEN) {
       return res.status(500).json({
-        error: "Missing FOOTBALL_DATA_API_TOKEN environment variable."
+        error: "Missing FOOTBALL_DATA_API_TOKEN"
       });
     }
 
-    // ⭐ WICHTIG: Kein Statusfilter → alle Spiele werden geladen
     const url = "https://api.football-data.org/v4/competitions/BL1/matches";
 
     const fetchRes = await fetch(url, {
@@ -189,11 +202,15 @@ module.exports = async (req, res) => {
 
     const fixtures = [];
 
-    // --- KORREKTER 14-Tage-Datum-Filter ---
     const nowDate = new Date();
     nowDate.setHours(0, 0, 0, 0);
 
     const cutoffDate = new Date(nowDate.getTime() + 14 * 24 * 60 * 60 * 1000);
+
+    // ---------- CREDIT CHECK ----------
+    const creditStatus = await checkOddsCredits();
+
+    const creditsExhausted = creditStatus.exhausted;
 
     for (const m of matches) {
       const home = m.homeTeam?.name ?? "Home";
@@ -210,9 +227,25 @@ module.exports = async (req, res) => {
 
       const matchId = m.id;
 
+      // ---------- Wenn Credits leer → keine Prediction ----------
+      if (creditsExhausted) {
+        fixtures.push({
+          id: matchId,
+          date: utc.slice(0, 10),
+          time: utc.slice(11, 16),
+          homeTeam: home,
+          awayTeam: away,
+          prediction: "Credits aufgebraucht",
+          confidence: null,
+          probabilities: null,
+          oddsProbabilities: null
+        });
+        continue;
+      }
+
+      // ---------- Odds abrufen ----------
       const oddsProbs = await getOddsProbs(matchId);
 
-      // Spiele ohne Quoten trotzdem anzeigen
       if (!oddsProbs) {
         fixtures.push({
           id: matchId,
@@ -248,7 +281,16 @@ module.exports = async (req, res) => {
     }
 
     fixturesCache = { ts: now, data: fixtures };
-    return res.status(200).json({ source: "api", matches: fixtures });
+
+    return res.status(200).json({
+      source: "api",
+      credits: creditStatus,
+      frontendMessage: creditsExhausted
+        ? "⚠️ Odds‑API Credits aufgebraucht – keine Predictions möglich"
+        : null,
+      matches: fixtures
+    });
+
   } catch (err) {
     console.error("fixtures error", err);
     return res.status(500).json({ error: err.message });
