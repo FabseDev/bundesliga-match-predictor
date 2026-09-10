@@ -1,103 +1,17 @@
-// Serverless Bundesliga-Predictions mit:
+// Serverless Bundesliga-Predictions nur mit:
 // - football-data.org (Fixtures)
-// - ClubElo (dynamische ELO-Ratings, gescraped)
-// - optional Buchmacher-Quoten (TheOddsAPI o.ä.)
-// - Modell: ELO + Quoten -> 1X2-Probs -> erwartete Tore (λ) -> Poisson -> wahrscheinlichstes Ergebnis
+// - Buchmacher-Quoten (TheOddsAPI o.ä.)
+// - Modell: Quoten -> 1X2-Probs -> erwartete Tore (λ) -> Poisson -> wahrscheinlichstes Ergebnis
 //
 // ENV-Variablen (alle NUR als Umgebungsvariablen, nicht im Code hart codieren):
 // - FOOTBALL_DATA_API_TOKEN  (für football-data.org)
-// - ODDS_API_KEY             (für Quoten-API; wenn nicht gesetzt, läuft Modell nur mit ELO)
+// - ODDS_API_KEY             (für Quoten-API)
 
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1h: Fixture-Cache
 let fixturesCache = { ts: 0, data: null };
 
-const ELO_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6h: ELO-Cache
-let eloCache = {}; // { teamName: { ts, elo } }
-
 const ODDS_CACHE_TTL_MS = 15 * 60 * 1000; // 15min: Quoten-Cache
-let oddsCache = {}; // { matchKey: { ts, probs } }
-
-// Mapping football-data.org Teamnamen -> ClubElo URLs
-const ELO_URLS = {
-  "FC Bayern München": "https://clubelo.com/BayernMunich",
-  "Borussia Dortmund": "https://clubelo.com/Dortmund",
-  "Bayer 04 Leverkusen": "https://clubelo.com/Leverkusen",
-  "RB Leipzig": "https://clubelo.com/RBLeipzig",
-  "VfB Stuttgart": "https://clubelo.com/Stuttgart",
-  "Eintracht Frankfurt": "https://clubelo.com/Frankfurt",
-  "SC Freiburg": "https://clubelo.com/Freiburg",
-  "TSG 1899 Hoffenheim": "https://clubelo.com/Hoffenheim",
-  "1. FC Union Berlin": "https://clubelo.com/UnionBerlin",
-  "VfL Wolfsburg": "https://clubelo.com/Wolfsburg",
-  "SV Werder Bremen": "https://clubelo.com/WerderBremen",
-  "1. FSV Mainz 05": "https://clubelo.com/Mainz",
-  "Borussia Mönchengladbach": "https://clubelo.com/MGladbach",
-  "FC Augsburg": "https://clubelo.com/Augsburg",
-  "VfL Bochum 1848": "https://clubelo.com/Bochum",
-  "1. FC Heidenheim 1846": "https://clubelo.com/Heidenheim",
-  "SV Darmstadt 98": "https://clubelo.com/Darmstadt",
-  "1. FC Köln": "https://clubelo.com/Cologne"
-};
-
-// ---------- ELO-Fetch & Cache ----------
-
-async function fetchElo(url) {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`ELO fetch failed: ${res.status}`);
-  const html = await res.text();
-
-  // 1) Primär: Zeile mit "Elo"
-  let match = html.match(/<td>\s*Elo\s*<\/td>\s*<td>(\d{3,4})<\/td>/i);
-
-  if (match) {
-    const elo = parseInt(match[1], 10);
-    if (Number.isFinite(elo) && elo > 500) {
-      return elo;
-    }
-  }
-
-  // 2) Fallback: größte 3–4-stellige Zahl in <td>
-  const allMatches = [...html.matchAll(/<td>(\d{3,4})<\/td>/g)].map(m => parseInt(m[1], 10));
-
-  if (allMatches.length === 0) {
-    throw new Error("No numeric <td> values found for ELO");
-  }
-
-  const fallbackElo = Math.max(...allMatches);
-
-  if (!Number.isFinite(fallbackElo) || fallbackElo < 500) {
-    throw new Error(`Invalid fallback ELO parsed: ${fallbackElo}`);
-  }
-
-  return fallbackElo;
-}
-
-async function getTeamElo(teamName) {
-  const now = Date.now();
-  const cached = eloCache[teamName];
-
-  if (cached && now - cached.ts < ELO_CACHE_TTL_MS) {
-    return cached.elo;
-  }
-
-  const url = ELO_URLS[teamName];
-  if (!url) {
-    const fallback = 1500;
-    eloCache[teamName] = { ts: now, elo: fallback };
-    return fallback;
-  }
-
-  try {
-    const elo = await fetchElo(url);
-    eloCache[teamName] = { ts: now, elo };
-    return elo;
-  } catch (e) {
-    console.error(`ELO fetch error for ${teamName}:`, e.message);
-    const fallback = 1500;
-    eloCache[teamName] = { ts: now, elo: fallback };
-    return fallback;
-  }
-}
+let oddsCache = {}; // { matchKey: { ts, probs } };
 
 // ---------- Quoten-Fetch & Cache ----------
 
@@ -171,60 +85,14 @@ async function getOddsProbs(home, away, dateKey) {
   return probs;
 }
 
-// ---------- ELO-basierte 1X2-Probs ----------
-
-function eloOutcomeProbs(homeElo, awayElo) {
-  const homeAdv = 50;
-  const diff = homeElo - awayElo + homeAdv;
-
-  const pHome = 1 / (1 + Math.pow(10, -diff / 400));
-  const pAway = 1 - pHome;
-  const pDraw = 0.18 + (0.06 * Math.exp(-Math.abs(diff) / 200)); // etwas weniger Draw-Dominanz
-
-  const total = pHome + pDraw + pAway;
-  if (total <= 0) {
-    return { home: 0.33, draw: 0.34, away: 0.33 };
-  }
-
-  return {
-    home: pHome / total,
-    draw: pDraw / total,
-    away: pAway / total
-  };
-}
-
-// ---------- Kombination ELO + Quoten ----------
-
-function combineProbs(eloProbs, oddsProbs) {
-  if (!oddsProbs) return eloProbs;
-
-  const wElo = 0.3;  // 30% ELO
-  const wOdds = 0.7; // 70% Quoten
-
-  let home = wElo * eloProbs.home + wOdds * oddsProbs.home;
-  let draw = wElo * eloProbs.draw + wOdds * oddsProbs.draw;
-  let away = wElo * eloProbs.away + wOdds * oddsProbs.away;
-
-  const total = home + draw + away;
-  if (total <= 0) {
-    return eloProbs;
-  }
-
-  home /= total;
-  draw /= total;
-  away /= total;
-
-  return { home, draw, away };
-}
-
-// ---------- 1X2-Probs -> erwartete Tore (λ) (verbessertes Modell) ----------
+// ---------- 1X2-Probs -> erwartete Tore (λ) nur aus Quoten ----------
 
 function expectedGoalsFromProbs(probs) {
   // Bundesliga-Durchschnittswerte
   const baseHome = 1.65;
   const baseAway = 1.25;
 
-  const strengthDiff = probs.home - probs.away; // Favoritenstärke
+  const strengthDiff = probs.home - probs.away; // Favoritenstärke aus Quoten
 
   // stärkere Gewichtung, damit λ-Werte sich spürbar unterscheiden
   let homeExp = baseHome + strengthDiff * 2.2;
@@ -337,14 +205,21 @@ module.exports = async (req, res) => {
 
       const dateKey = utc.slice(0, 10);
 
-      const [homeElo, awayElo] = await Promise.all([
-        getTeamElo(home),
-        getTeamElo(away)
-      ]);
-
-      const eloProbs = eloOutcomeProbs(homeElo, awayElo);
       const oddsProbs = await getOddsProbs(home, away, dateKey);
-      const combinedProbs = combineProbs(eloProbs, oddsProbs);
+
+      // Wenn keine Quoten verfügbar sind, kannst du entscheiden:
+      // - entweder Spiel überspringen
+      // - oder neutrale Verteilung nehmen
+      if (!oddsProbs) {
+        // neutrale Verteilung:
+        // const neutral = { home: 0.4, draw: 0.26, away: 0.34 };
+        // const scorePred = poissonScorePredictionFromProbs(neutral);
+        // fixtures.push(...);
+        // oder: einfach continue;
+        continue;
+      }
+
+      const combinedProbs = oddsProbs; // nur Quoten, kein ELO
 
       const scorePred = poissonScorePredictionFromProbs(combinedProbs);
 
@@ -354,8 +229,6 @@ module.exports = async (req, res) => {
         time: utc.slice(11, 16),
         homeTeam: home,
         awayTeam: away,
-        homeElo,
-        awayElo,
         prediction: scorePred.prediction,
         confidence: scorePred.confidence,
         probabilities: {
@@ -363,8 +236,7 @@ module.exports = async (req, res) => {
           draw: Math.round(combinedProbs.draw * 1000) / 1000,
           away: Math.round(combinedProbs.away * 1000) / 1000
         },
-        eloProbabilities: eloProbs,
-        oddsProbabilities: oddsProbs || null
+        oddsProbabilities: combinedProbs
       });
     }
 
