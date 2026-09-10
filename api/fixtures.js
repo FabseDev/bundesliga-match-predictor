@@ -186,17 +186,23 @@ module.exports = async (req, res) => {
 
     const fixtures = [];
 
+    // --- KORREKTER 14-Tage-Datum-Filter ---
     const nowDate = new Date();
+    nowDate.setHours(0, 0, 0, 0);
+
     const cutoffDate = new Date(nowDate.getTime() + 14 * 24 * 60 * 60 * 1000);
 
     for (const m of matches) {
       const home = m.homeTeam?.name ?? "Home";
       const away = m.awayTeam?.name ?? "Away";
       const utc = m.utcDate || new Date().toISOString();
-      const matchDate = new Date(utc);
 
-      // KORREKTER 14-Tage-Filter
-      if (matchDate < nowDate || matchDate > cutoffDate) {
+      const matchDate = new Date(utc);
+      const matchDay = new Date(matchDate);
+      matchDay.setHours(0, 0, 0, 0);
+
+      // KORREKTER 14-Tage-Filter (Datum, nicht Uhrzeit!)
+      if (matchDay < nowDate || matchDay > cutoffDate) {
         continue;
       }
 
